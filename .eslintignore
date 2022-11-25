@@ -1,0 +1,23 @@
+# Ignore artifacts:
+coverage
+node_modules/
+dist/
+public/
+build/
+.cache/
+.vscode/
+.sonarlint/
+.idea/
+yarn-error.log
+package-lock.json
+.DS_Store
+.env
+logs/*
+tests/happy-path/results
+.history/
+
+postcss.config.js
+tailwind.config.js
+src/styles/
+src/@types/
+*.scss
