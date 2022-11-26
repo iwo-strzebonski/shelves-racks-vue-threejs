@@ -10,29 +10,29 @@ extends:
   - plugin:import/typescript
   - plugin:vue/vue3-essential
   - eslint:recommended
-  - "@vue/eslint-config-typescript"
-  - "@vue/eslint-config-prettier"
+  - '@vue/eslint-config-typescript'
+  - '@vue/eslint-config-prettier'
 plugins:
   - prettier
-  - "@typescript-eslint"
+  - '@typescript-eslint'
   - import
 # parser: '@typescript-eslint/parser'
-parser: "vue-eslint-parser"
+parser: 'vue-eslint-parser'
 parserOptions:
   ecmaVersion: latest
   sourceType: module
 rules:
-  "@typescript-eslint/no-shadow":
+  '@typescript-eslint/no-shadow':
     - error
     - allow:
         - err
         - resolve
         - reject
-  "@typescript-eslint/no-unused-vars":
+  '@typescript-eslint/no-unused-vars':
     - error
-    - argsIgnorePattern: "^_"
-      varsIgnorePattern: "^_"
-      caughtErrorsIgnorePattern: "^_"
+    - argsIgnorePattern: '^_'
+      varsIgnorePattern: '^_'
+      caughtErrorsIgnorePattern: '^_'
   prettier/prettier:
     - error
   arrow-spacing:
@@ -52,7 +52,7 @@ rules:
   dot-location:
     - error
     - property
-  handle-callback-err: "off"
+  handle-callback-err: 'off'
   keyword-spacing: error
   max-nested-callbacks:
     - error
@@ -77,7 +77,7 @@ rules:
     - max: 2
       maxEOF: 1
       maxBOF: 0
-  no-shadow: "off"
+  no-shadow: 'off'
   no-trailing-spaces:
     - error
   no-var: error
@@ -98,7 +98,7 @@ rules:
   import/no-unresolved:
     - warn
     - ignore:
-        - "^@/"
+        - '^@/'
   import/no-deprecated: error
   import/named: error
   import/namespace: error
