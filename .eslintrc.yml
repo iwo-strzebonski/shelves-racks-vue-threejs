@@ -97,8 +97,8 @@ rules:
   import/no-amd: error
   import/no-unresolved:
     - warn
-    # - ignore:
-        # - "@voltbras/*"
+    - ignore:
+        - "^@/"
   import/no-deprecated: error
   import/named: error
   import/namespace: error

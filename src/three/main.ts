@@ -1,11 +1,14 @@
-import { Color, PerspectiveCamera, Scene } from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import { AmbientLight, Color, GridHelper, Scene } from 'three'
+import { InteractionManager } from 'three.interactive'
 
-import Cube from './primitives/cube'
-import Outline from './primitives/outline'
+import Camera from './camera'
+// import Cube from './primitives/cube'
+import OBJObject from './objObject'
 import Renderer from './renderer'
 
-const main = () => {
+import store from '@/stores/three.store'
+
+const main = async () => {
   const container = document.querySelector('#scene-container')
 
   if (!container) {
@@ -13,29 +16,55 @@ const main = () => {
   }
 
   const renderer = new Renderer(container.clientWidth, container.clientHeight, window.devicePixelRatio)
+  const camera = new Camera(container.clientWidth, container.clientHeight, 20, 60, 1, 10000, renderer)
+  const interactionManager = new InteractionManager(renderer, camera.get(), renderer.domElement, false)
 
   const scene = new Scene()
-  scene.background = new Color('#27272a')
+  scene.background = new Color(0xf9fafb)
 
-  const camera = new PerspectiveCamera(35, container.clientWidth / container.clientHeight, 0.1, 100)
-  camera.position.set(0, 0, 10)
+  const light = new AmbientLight(0x404040)
+  light.intensity = 5
+  scene.add(light)
 
-  const cube = new Cube(2, 2, 2, 'white')
-  const outline = new Outline(cube, 2, 'black')
-  scene.add(cube)
-  scene.add(outline)
+  const wheel = new OBJObject()
+  await wheel.load('wheel1')
+  interactionManager.add(wheel.object)
+  scene.add(wheel.object)
 
-  const controls = new OrbitControls(camera, renderer.domElement)
-  controls.enableDamping = true
-  controls.update()
+  const gridHelper = new GridHelper(63, 63)
+  scene.add(gridHelper)
+
+  {
+    document.addEventListener('mousedown', (event) => event.preventDefault())
+    wheel.object.addEventListener('click', () => console.debug(wheel.object.position))
+  }
+
+  {
+    document.addEventListener(
+      'keydown',
+      (e) => e.key === 'c' && (store.viewMode = store.viewMode === 'perspective' ? 'orthographic' : 'perspective')
+    )
+    document.addEventListener(
+      'keydown',
+      (e) => e.key === 'q' && (store.controlsMode = store.controlsMode === 'orbit' ? 'pan' : 'orbit')
+    )
+    document.addEventListener('keydown', (e) => e.key === 'r' && camera.reset())
+    document.addEventListener('keydown', (e) => e.key === 'g' && store.toggleGrid())
+  }
+
+  {
+    window.addEventListener('resize', () => {
+      camera.resize(container.clientWidth, container.clientHeight)
+      renderer.setSize(container.clientWidth, container.clientHeight)
+    })
+  }
 
   const animate = () => {
     requestAnimationFrame(animate)
 
-    // required if controls.enableDamping or controls.autoRotate are set to true
-    controls.update()
-
-    renderer.render(scene, camera)
+    camera.update()
+    gridHelper.visible = store.showGrid
+    renderer.render(scene, camera.get())
   }
 
   container.append(renderer.domElement)
