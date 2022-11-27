@@ -28,6 +28,7 @@
     "@rushstack/eslint-patch": "^1.2.0",
     "@types/node": "^18.11.9",
     "@types/three": "^0.146.0",
+    "@types/webpack-env": "^1.18.0",
     "@vitejs/plugin-vue": "^3.2.0",
     "@vitejs/plugin-vue-jsx": "^2.1.1",
     "@vue/eslint-config-prettier": "^7.0.0",

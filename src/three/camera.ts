@@ -112,6 +112,7 @@ export default class Camera {
 
       this.orthographicControls.position0.copy(this.controls.position0)
       this.orthographicControls.target.copy(this.controls.target)
+      this.orthographicControls.mouseButtons = this.controls.mouseButtons
       this.orthographicControls.update()
 
       this.camera = this.orthographicCamera
@@ -123,6 +124,7 @@ export default class Camera {
 
       this.perspectiveControls.position0.copy(this.controls.position0)
       this.perspectiveControls.target.copy(this.controls.target)
+      this.perspectiveControls.mouseButtons = this.controls.mouseButtons
       this.perspectiveControls.update()
 
       this.camera = this.perspectiveCamera
@@ -138,23 +140,8 @@ export default class Camera {
         LEFT: MOUSE.ROTATE,
         MIDDLE: MOUSE.DOLLY
       }
-
-      this.perspectiveControls.mouseButtons = {
-        LEFT: MOUSE.ROTATE,
-        MIDDLE: MOUSE.DOLLY
-      }
-
-      this.orthographicControls.mouseButtons = {
-        LEFT: MOUSE.ROTATE,
-        MIDDLE: MOUSE.DOLLY
-      }
     } else {
       this.controls.mouseButtons = {
-        LEFT: MOUSE.PAN,
-        MIDDLE: MOUSE.DOLLY
-      }
-
-      this.perspectiveControls.mouseButtons = {
         LEFT: MOUSE.PAN,
         MIDDLE: MOUSE.DOLLY
       }
@@ -163,8 +150,6 @@ export default class Camera {
 
   dispose() {
     this.camera.clear()
-    this.perspectiveCamera.clear()
-    this.orthographicCamera.clear()
 
     this.perspectiveControls.dispose()
     this.orthographicControls.dispose()
