@@ -6,194 +6,214 @@ import { toRaw } from 'vue'
 import Camera from './camera'
 import Renderer from './renderer'
 
+import type OBJObject from './objObject'
+
 import store from '@/stores/three.store'
 
-const main = async () => {
-  const container = document.querySelector('#scene-container')
+export default class Three {
+  private readonly container: Element
+  private readonly scene: Scene
+  private readonly camera: Camera
+  private readonly renderer: Renderer
+  private readonly interactionManager: InteractionManager
+  private readonly transformControls: TransformControls
+  private readonly grid: GridHelper
+  private readonly ambientLight: AmbientLight
 
-  let selectedObject: Object3D | null = null
-  let shiftDown = false
+  private selectedObject: Object3D | null = null
+  private shiftDown = false
+  private objectsCount = 0
 
-  if (!container) {
-    return console.error('No container element found')
-  }
+  constructor(container: Element) {
+    this.container = container
 
-  const renderer = new Renderer(container.clientWidth, container.clientHeight, window.devicePixelRatio)
-  const camera = new Camera(container.clientWidth, container.clientHeight, 30, 60, 1, 10000, renderer)
-  const interactionManager = new InteractionManager(renderer, camera.get(), renderer.domElement, false)
-  const scene = new Scene()
-  const light = new AmbientLight(0x404040)
-  const gridHelper = new GridHelper(63, 63)
-  const transformControls = new TransformControls(camera.get(), renderer.domElement)
-
-  let objectsCount = 0
-
-  container.append(renderer.domElement)
-
-  {
-    scene.background = new Color(0xf9fafb)
-    light.intensity = 4.5
-    transformControls.visible = false
-  }
-
-  {
-    transformControls.addEventListener('dragging-changed', (event) => {
-      camera.controls.enabled = !event.value
-    })
-  }
-
-  {
-    scene.add(light)
-    scene.add(gridHelper)
-    scene.add(transformControls)
-  }
-
-  {
-    const keydownHandler = (event: KeyboardEvent) => {
-      switch (event.key) {
-        case 'c':
-          return store.changeViewMode(store.viewMode === 'orthographic' ? 'perspective' : 'orthographic')
-        case 'q':
-          return store.changeControlsMode(store.controlsMode === 'orbit' ? 'pan' : 'orbit')
-        case 'r':
-          return store.resetCamera()
-        case 'g':
-          return store.toggleGrid()
-        case 't':
-          return store.changeTransformControls(store.transformControls === 'translate' ? 'rotate' : 'translate')
-        case 'Shift':
-          transformControls.setTranslationSnap(1)
-          transformControls.setRotationSnap(MathUtils.degToRad(15))
-          shiftDown = true
-          break
-        case 'Backspace':
-          if (!selectedObject) {
-            break
-          }
-
-          if (selectedObject.name === 'selected-object') {
-            selectedObject.children.forEach((child) => {
-              scene.remove(child)
-            })
-          }
-
-          scene.remove(selectedObject)
-          transformControls.detach()
-          selectedObject = null
-
-          break
-      }
+    {
+      this.scene = new Scene()
+      this.renderer = new Renderer(this.container.clientWidth, this.container.clientHeight, window.devicePixelRatio)
+      this.camera = new Camera(this.container.clientWidth, this.container.clientHeight, 30, 60, 1, 10000, this.renderer)
+      this.interactionManager = new InteractionManager(
+        this.renderer,
+        this.camera.get(),
+        this.renderer.domElement,
+        false
+      )
+      this.transformControls = new TransformControls(this.camera.get(), this.renderer.domElement)
+      this.grid = new GridHelper(63, 63, 0x444444, 0x444444)
+      this.ambientLight = new AmbientLight(0xffffff, 0.5)
     }
 
-    const keyupHandler = (event: KeyboardEvent) => {
-      switch (event.key) {
-        case 'Shift':
-          transformControls.setTranslationSnap(null)
-          transformControls.setRotationSnap(null)
-          shiftDown = false
-          break
-      }
+    {
+      this.scene.background = new Color(0xf9fafb)
+      this.ambientLight.intensity = 0.5
+      this.transformControls.visible = false
+      this.transformControls.mode = store.transformControls
     }
 
-    document.addEventListener('keydown', keydownHandler)
-    document.addEventListener('keyup', keyupHandler)
+    {
+      this.container.appendChild(this.renderer.domElement)
+    }
+
+    {
+      this.scene.add(this.transformControls)
+      this.scene.add(this.grid)
+      this.scene.add(this.ambientLight)
+    }
+
+    this.addEventListeners()
   }
 
-  {
-    window.addEventListener('resize', () => {
-      camera.resize(container.clientWidth, container.clientHeight)
-      renderer.setSize(container.clientWidth, container.clientHeight)
-    })
+  async render() {
+    await this.initObjects()
+
+    this.camera.update()
+    this.grid.visible = store.showGrid
+    this.transformControls.mode = store.transformControls
+    this.renderer.render(this.scene, this.camera.get())
+
+    requestAnimationFrame(this.render.bind(this))
   }
 
-  const computeTransformControlsCenter = (object: Object3D) => {
+  private async initObjects() {
+    if (store.objects.length === this.objectsCount) {
+      return
+    }
+
+    for (const obj of store.objects.slice(this.objectsCount)) {
+      await obj.load()
+
+      const item = toRaw(obj) as OBJObject
+
+      item.object.addEventListener('click', this.onObjectClick.bind(this, item))
+
+      this.interactionManager.add(item.object)
+      this.scene.add(toRaw(item.object))
+    }
+
+    this.objectsCount = store.objects.length
+  }
+
+  private computeTransformControlsCenter(object: Object3D) {
     const aabb = new Box3().setFromObject(object)
     const position = aabb.getCenter(new Vector3())
     position.y /= 2
 
-    transformControls.position.copy(position)
+    this.transformControls.position.copy(position)
   }
 
-  const initObjects = async () => {
-    if (store.objects.length === objectsCount) {
-      return
+  private addEventListeners() {
+    window.addEventListener('resize', this.onWindowResize.bind(this), false)
+    window.addEventListener('keydown', this.onKeyDown.bind(this), false)
+    window.addEventListener('keyup', this.onKeyUp.bind(this), false)
+
+    this.transformControls.addEventListener('dragging-changed', (event) => {
+      this.camera.controls.enabled = !event.value
+    })
+
+    // this.renderer.domElement.addEventListener('click', this.onClick.bind(this), false)
+  }
+
+  private onKeyDown(event: KeyboardEvent) {
+    switch (event.key) {
+      case 'c':
+        return store.changeViewMode(store.viewMode === 'orthographic' ? 'perspective' : 'orthographic')
+      case 'q':
+        return store.changeControlsMode(store.controlsMode === 'orbit' ? 'pan' : 'orbit')
+      case 'r':
+        return store.resetCamera()
+      case 'g':
+        return store.toggleGrid()
+      case 't':
+        return store.changeTransformControls(store.transformControls === 'translate' ? 'rotate' : 'translate')
+      case 'Shift':
+        this.transformControls.setTranslationSnap(1)
+        this.transformControls.setRotationSnap(MathUtils.degToRad(15))
+        this.shiftDown = true
+        break
+      case 'Backspace':
+        if (!this.selectedObject) {
+          break
+        }
+
+        if (this.selectedObject.name === 'selected-object') {
+          this.selectedObject.children.forEach((child) => {
+            this.scene.remove(child)
+          })
+        }
+
+        this.scene.remove(this.selectedObject)
+        this.transformControls.detach()
+        this.selectedObject = null
+
+        break
     }
+  }
 
-    for (const obj of store.objects.slice(objectsCount)) {
-      await obj.load()
+  private onKeyUp(event: KeyboardEvent) {
+    switch (event.key) {
+      case 'Shift':
+        this.transformControls.setTranslationSnap(null)
+        this.transformControls.setRotationSnap(null)
+        this.shiftDown = false
+        break
+    }
+  }
 
-      const item = toRaw(obj)
+  private onWindowResize() {
+    this.camera.update()
+    this.renderer.setSize(window.innerWidth, window.innerHeight)
+  }
 
-      item.object.addEventListener('click', () => {
-        if (selectedObject?.name === 'selected-object') {
-          if (shiftDown) {
-            if (selectedObject.children.find((child) => child.id === item.object.id)) {
-              scene.add(item.object)
-              selectedObject.remove(item.object)
+  private onObjectClick(item: OBJObject) {
+    if (this.selectedObject?.name === 'selected-object') {
+      if (this.shiftDown) {
+        if (this.selectedObject.children.find((child) => child.id === item.object.id)) {
+          this.scene.add(item.object)
+          this.selectedObject.remove(item.object)
 
-              item.object.position.add(selectedObject.position)
-            } else {
-              selectedObject.add(item.object)
-            }
-          } else {
-            selectedObject.children.forEach((child) => {
-              if (!selectedObject) {
-                return
-              }
-
-              scene.add(child)
-              selectedObject.remove(child)
-
-              child.position.add(selectedObject.position)
-            })
-
-            selectedObject = item.object
+          item.object.position.add(this.selectedObject.position)
+          item.object.rotation.copy(this.selectedObject.rotation)
+        } else {
+          this.selectedObject.add(item.object)
+        }
+      } else {
+        this.selectedObject.children.forEach((child) => {
+          if (!this.selectedObject) {
+            return
           }
-        } else if (selectedObject && shiftDown) {
-          const group = new Group()
-          const tmp = selectedObject
 
-          group.name = 'selected-object'
-          selectedObject = group
+          this.scene.add(child)
+          this.selectedObject.remove(child)
 
-          group.add(tmp)
-          group.add(item.object)
-          scene.add(group)
-        } else if (selectedObject?.id === item.object.id) {
-          selectedObject = null
-        } else {
-          selectedObject = item.object
-        }
+          child.position.add(this.selectedObject.position)
+          child.rotation.copy(this.selectedObject.rotation)
+        })
 
-        if (selectedObject) {
-          computeTransformControlsCenter(selectedObject)
+        this.selectedObject = item.object
+      }
+    } else if (this.selectedObject && this.shiftDown) {
+      const group = new Group()
+      const tmp = this.selectedObject
 
-          transformControls.visible = true
-          transformControls.attach(selectedObject)
-        } else {
-          transformControls.visible = false
-          transformControls.detach()
-        }
-      })
+      group.name = 'selected-object'
+      this.selectedObject = group
 
-      interactionManager.add(item.object)
-      scene.add(toRaw(item.object))
+      group.add(tmp)
+      group.add(item.object)
+      this.scene.add(group)
+    } else if (this.selectedObject?.id === item.object.id) {
+      this.selectedObject = null
+    } else {
+      this.selectedObject = item.object
     }
 
-    objectsCount = store.objects.length
+    if (this.selectedObject) {
+      this.computeTransformControlsCenter(this.selectedObject)
+
+      this.transformControls.visible = true
+      this.transformControls.attach(this.selectedObject)
+    } else {
+      this.transformControls.visible = false
+      this.transformControls.detach()
+    }
   }
-
-  const render = () => {
-    initObjects()
-
-    camera.update()
-    gridHelper.visible = store.showGrid
-    renderer.render(scene, camera.get())
-
-    requestAnimationFrame(render)
-  }
-
-  render()
 }
-
-export default main

@@ -4,10 +4,6 @@ import threeStore from '../stores/three.store'
 
 import OBJObject from '@/three/objObject'
 
-const capitalize = (str: string): string => {
-  return str.charAt(0).toLocaleUpperCase() + str.slice(1)
-}
-
 interface ImportMetaFixed extends ImportMeta {
   globEager: (pattern: string) => string[]
   glob: (pattern: string) => string[]
@@ -51,8 +47,8 @@ getObjectsCounts()
       <div class="flex flex-col p-4" v-bind:class="store.isMenuOpen ? 'delay-200' : 'collapse'">
         <h2 class="self-center text-xl">Assets menu</h2>
 
-        <div class="mt-4" v-for="(count, type) in objectsCount" :key="type">
-          <h3 class="text-lg">{{ capitalize(type) }}</h3>
+        <div class="mt-4 overflow-y-auto" v-for="(count, type) in objectsCount" :key="type">
+          <h3 class="text-lg">{{ type.capitalize() }}</h3>
 
           <ul>
             <li v-for="i in count" :key="i">
